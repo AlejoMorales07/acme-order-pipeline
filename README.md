@@ -1,85 +1,95 @@
-# Descripción
+# Acme Order Pipeline
 
-Vas a construir un Sistema Básico de Procesamiento de Órdenes que maneje el flujo desde la creación hasta la confirmación.
+## Descripción
 
-Flujo: Validación → Kafka → Pago → Confirmación
+Sistema de procesamiento de órdenes para e-commerce usando FastAPI, Kafka, PostgreSQL y MongoDB.  
+El flujo es completamente asíncrono y tolerante a fallos.
 
-## Contexto del Negocio
-Una tienda online necesita procesar órdenes simples. Cada orden debe:
-
-- Validar disponibilidad de inventario
-- Procesar el pago de forma asíncrona
-- Actualizar el inventario
-- Confirmar la orden
-
-## Flujo del Sistema
-1. API REST recibe la orden
-2. Validación inicial de datos e inventario
-3. Publicar evento a Kafka para procesamiento asíncrono
-4. Consumer de Kafka procesa la orden:
-   - Simula procesamiento de pago
-   - Actualiza inventario (PostgreSQL)
-   - Guarda orden completa (MongoDB)
-
-## Requisitos Técnicos
-- Backend: Python o Go
-- Bases de datos: PostgreSQL (inventario), MongoDB (órdenes)
-- Message Queue: Kafka con protobuf
-- Deployment: Docker
-
-## Casos Edge a Manejar
-- Inventario insuficiente
-- Productos inexistentes
-- Fallos de pago simulado
-- Órdenes duplicadas (idempotencia)
+---
 
 ## Arquitectura
 
+- **API REST:** Recibe y valida órdenes.
+- **Kafka:** Orquesta el procesamiento asíncrono.
+- **Consumer:** Simula pago, actualiza inventario y guarda la orden.
+- **PostgreSQL:** Inventario de productos.
+- **MongoDB:** Persistencia de órdenes.
+
+---
+
+## Requisitos
+
+- Docker y Docker Compose
+- Python 3.12 (solo para desarrollo local)
+
+---
+
+## Instalación y ejecución
+
+1. **Clona el repositorio:**
+   ```sh
+   git clone <repo-url>
+   cd acme-order-pipeline
+   ```
+
+2. **Levanta todos los servicios:**
+   ```sh
+   docker compose up -d --build
+   ```
+
+3. **Verifica los logs:**
+   ```sh
+   docker compose logs -f api
+   docker compose logs -f consumer
+   ```
+
+---
+
+## Endpoints principales
+
+### Crear orden
+
+```http
+POST /orders
+Content-Type: application/json
+
+{
+  "customer": { "name": "Juan", "email": "juan@email.com" },
+  "items": [
+    { "sku": "SKU-001", "quantity": 2 },
+    { "sku": "SKU-002", "quantity": 1 }
+  ]
+}
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   PostgreSQL    │    │    MongoDB      │    │     Kafka       │
-│   (Inventory)   │    │   (Orders)      │    │   (Events)      │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         └───────────────────────┼───────────────────────┘
-                                 │
-                    ┌─────────────────┐
-                    │  Application    │
-                    │  (REST API)     │
-                    └─────────────────┘
+
+### Consultar orden
+
+```http
+GET /orders/{order_id}
 ```
 
-## Servicios Incluidos
+### Consultar inventario
 
-| Servicio | Puerto | Credenciales | Propósito |
-|----------|--------|--------------|-----------|
-| PostgreSQL | 5432 | postgres/postgres123 | Inventario y productos |
-| MongoDB | 27017 | admin/admin123 | Órdenes completadas |
-| Kafka | 9092 | - | Eventos asíncronos |
-
-### Prerrequisitos
-- Docker & Docker Compose
-- Make (opcional)
-
-### Levantamiento
-
-```bash
-docker compose up -d
-make kafka-create-topics
+```http
+GET /inventory
 ```
 
-### Verificar que todo esté funcionando
+---
 
-```bash
-# Verificar estado de servicios
-make status
 
-# Ver información de conexión
-make info
-```
 
-### Ver comandos
+## Pruebas
 
-```bash
-make help
-```
+- Usa Postman o curl para probar los endpoints.
+- Verifica en los logs que el flujo se procesa correctamente.
+
+---
+
+## Notas
+
+- El sistema implementa idempotencia y manejo de errores.
+- Los servicios esperan a que Kafka esté disponible antes de procesar órdenes.
+- El proyecto está listo para producción y desarrollo local.
+
+---
+

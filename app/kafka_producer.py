@@ -7,5 +7,5 @@ producer = KafkaProducer(
 )
 
 def publish_order_event(order):
-    producer.send("orders", order.dict())
+    producer.send("orders", order)
     producer.flush()

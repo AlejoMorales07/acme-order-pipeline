@@ -2,8 +2,9 @@ from fastapi import FastAPI, HTTPException, Query
 from app.inventory import check_inventory, get_product_by_sku, get_all_products, get_inventory_by_sku
 from app.kafka_producer import publish_order_event
 from app.models import OrderRequest
-from app.orders import get_order_by_id, get_orders_by_user
+from app.orders import get_order_by_id, get_orders_by_user, generate_order_id
 from datetime import datetime
+ 
 
 app = FastAPI()
 
@@ -11,7 +12,7 @@ app = FastAPI()
 def health():
     return {
         "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat() + "Z"
+        "timestamp": datetime.now().isoformat() + "Z"
     }
 
 @app.get("/products")
@@ -39,20 +40,23 @@ def create_order(order: OrderRequest):
     result = check_inventory(order.items)
     if not result["ok"]:
         raise HTTPException(status_code=404 if result["error"] == "product_not_found" else 400, detail={"error": result["error"], "message": result["message"]})
-    publish_order_event(order)
+    order_id = generate_order_id()
+    estimated_total = sum([get_product_by_sku(item.sku)["value"]["price"] * item.quantity for item in order.items])
+    order_dict = order.model_dump()
+    order_dict["order_id"] = order_id
+    publish_order_event(order_dict)
     return {
-        "order_id": "ORD-2024-001234",  # Genera el ID real en tu lógica
+        "order_id": order_id,
         "status": "pending",
         "message": "Order created successfully and queued for processing",
-        "estimated_total": 0,  # Calcula el total real
-        "created_at": datetime.utcnow().isoformat() + "Z"
+        "estimated_total": estimated_total,
+        "created_at": datetime.now().isoformat() + "Z"
     }
 
 @app.get("/orders/{order_id}")
 def get_order(order_id: str):
     result = get_order_by_id(order_id)
     if not result["ok"]:
-        print(f"Error fetching order: {result['error']}")
         raise HTTPException(status_code=404 if result["error"] == "order_not_found" else 500, detail={"error": result["error"], "message": result["message"]})
     return result["value"]
 

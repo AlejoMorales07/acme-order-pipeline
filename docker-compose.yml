@@ -38,7 +38,7 @@ services:
       interval: 10s
       timeout: 10s
       retries: 5
-  # Zookeeper (required for Kafka)
+  
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: ecommerce_zookeeper
@@ -57,7 +57,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-  # Kafka Broker
+  
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: ecommerce_kafka
@@ -67,7 +67,7 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_INTERNAL://kafka:29092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
@@ -88,7 +88,7 @@ services:
       interval: 10s
       timeout: 10s
       retries: 5
-  # Schema Registry
+  
   schema-registry:
     image: confluentinc/cp-schema-registry:7.5.0
     hostname: schema-registry
@@ -101,7 +101,39 @@ services:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'kafka:29092'
       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
-  
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ecommerce_api
+    command: uvicorn app.api:app --host 0.0.0.0 --port 8080 --reload
+    volumes:
+      - .:/app
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - mongodb
+      - kafka
+    networks:
+      - ecommerce_network
+
+  consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ecommerce_consumer
+    command: python -m app.kafka_consumer
+    volumes:
+      - .:/app
+    depends_on:
+      - postgres
+      - mongodb
+      - kafka
+    networks:
+      - ecommerce_network
+
 volumes:
   postgres_data:
     driver: local

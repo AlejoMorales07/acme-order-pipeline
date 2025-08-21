@@ -14,7 +14,7 @@ def get_db_conn():
         dbname="ecommerce_inventory",
         user="postgres",
         password="postgres123",
-        host="localhost",
+        host="postgres",
         port=5432
     )
 

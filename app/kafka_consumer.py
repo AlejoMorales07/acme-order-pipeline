@@ -5,20 +5,35 @@ from app.payment import simulate_payment
 from app.orders import save_order
 from datetime import datetime
 import logging
+from kafka import KafkaConsumer
+from kafka.errors import NoBrokersAvailable
+import time
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s"
 )
 
-consumer = KafkaConsumer(
-    "orders",
-    bootstrap_servers="localhost:9092",
-    value_deserializer=lambda m: json.loads(m.decode("utf-8")),
-    auto_offset_reset="earliest",
-    enable_auto_commit=True,
-    group_id="order-processors"
-)
+MAX_RETRIES = 10
+RETRY_DELAY = 5  
+
+for attempt in range(1, MAX_RETRIES + 1):
+    try:
+        consumer = KafkaConsumer(
+            "orders",
+            bootstrap_servers="kafka:9092",
+            group_id="order-processors",
+            value_deserializer=lambda m: json.loads(m.decode("utf-8")),
+            auto_offset_reset="earliest"
+        )
+        logging.info("Conexión a Kafka exitosa.")
+        break
+    except NoBrokersAvailable as e:
+        logging.warning(f"Intento {attempt}: Kafka no disponible, reintentando en {RETRY_DELAY}s...")
+        time.sleep(RETRY_DELAY)
+else:
+    logging.error("No se pudo conectar a Kafka después de varios intentos. Abortando.")
+    exit(1)
 
 def process_orders():
     for msg in consumer:
